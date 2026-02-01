@@ -3,7 +3,6 @@ import { Routes, Route, Link } from 'react-router-dom';
 import { DashboardLayout, tenantNavItems } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { dashboardApi } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/mock-data';
@@ -14,10 +13,16 @@ import {
   CreditCard, 
   Wrench,
   MessageSquare,
-  Calendar,
   ArrowRight,
-  AlertCircle
 } from 'lucide-react';
+
+// Import tenant components
+import TenantListings from '@/components/tenant/TenantListings';
+import TenantApplications from '@/components/tenant/TenantApplications';
+import TenantLease from '@/components/tenant/TenantLease';
+import TenantPayments from '@/components/tenant/TenantPayments';
+import TenantMaintenance from '@/components/tenant/TenantMaintenance';
+import TenantMessages from '@/components/tenant/TenantMessages';
 
 function DashboardHome() {
   const { user } = useAuth();
@@ -225,37 +230,17 @@ function DashboardHome() {
   );
 }
 
-// Placeholder pages
-function ListingsPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Browse Listings</h2><p className="text-muted-foreground">Listings interface coming soon...</p></div>;
-}
-function ApplicationsPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">My Applications</h2><p className="text-muted-foreground">Applications interface coming soon...</p></div>;
-}
-function LeasePage() {
-  return <div><h2 className="text-2xl font-bold mb-4">My Lease</h2><p className="text-muted-foreground">Lease details interface coming soon...</p></div>;
-}
-function PaymentsPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Payments</h2><p className="text-muted-foreground">Payment history interface coming soon...</p></div>;
-}
-function MaintenancePage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Maintenance Requests</h2><p className="text-muted-foreground">Maintenance interface coming soon...</p></div>;
-}
-function MessagesPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Messages</h2><p className="text-muted-foreground">Messaging interface coming soon...</p></div>;
-}
-
 export default function TenantDashboard() {
   return (
     <DashboardLayout navItems={tenantNavItems} title="Tenant Dashboard">
       <Routes>
         <Route index element={<DashboardHome />} />
-        <Route path="listings/*" element={<ListingsPage />} />
-        <Route path="applications/*" element={<ApplicationsPage />} />
-        <Route path="lease/*" element={<LeasePage />} />
-        <Route path="payments/*" element={<PaymentsPage />} />
-        <Route path="maintenance/*" element={<MaintenancePage />} />
-        <Route path="messages/*" element={<MessagesPage />} />
+        <Route path="listings/*" element={<TenantListings />} />
+        <Route path="applications/*" element={<TenantApplications />} />
+        <Route path="lease/*" element={<TenantLease />} />
+        <Route path="payments/*" element={<TenantPayments />} />
+        <Route path="maintenance/*" element={<TenantMaintenance />} />
+        <Route path="messages/*" element={<TenantMessages />} />
       </Routes>
     </DashboardLayout>
   );
