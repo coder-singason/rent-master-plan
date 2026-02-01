@@ -164,6 +164,17 @@ export const usersApi = {
     return { success: true, data: user || null };
   },
 
+  create: async (data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<User>> => {
+    await delay(SIMULATED_DELAY);
+    const newUser: User = {
+      ...data,
+      id: `user-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return { success: true, data: newUser };
+  },
+
   update: async (id: string, data: Partial<User>): Promise<ApiResponse<User>> => {
     await delay(SIMULATED_DELAY);
     const index = mockUsers.findIndex(u => u.id === id);
@@ -179,6 +190,7 @@ export const usersApi = {
     return { success: true, data: null };
   },
 };
+
 
 // ==================== PROPERTIES API ====================
 
@@ -617,5 +629,77 @@ export const dashboardApi = {
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
     return { success: true, data: limit ? sorted.slice(0, limit) : sorted };
+  },
+};
+
+// ==================== API ALIASES ====================
+// For consistent naming across components
+export const userApi = usersApi;
+export const propertyApi = {
+  ...propertiesApi,
+  getAll: async (): Promise<ApiResponse<Property[]>> => {
+    const result = await propertiesApi.getAll();
+    return { success: true, data: result.data };
+  },
+};
+export const unitApi = {
+  ...unitsApi,
+  getAll: async (): Promise<ApiResponse<Unit[]>> => {
+    await delay(SIMULATED_DELAY);
+    return { success: true, data: mockUnits };
+  },
+  delete: async (id: string): Promise<ApiResponse<null>> => {
+    await delay(SIMULATED_DELAY);
+    return { success: true, data: null };
+  },
+};
+export const applicationApi = {
+  ...applicationsApi,
+  update: async (id: string, data: Partial<Application>): Promise<ApiResponse<Application>> => {
+    await delay(SIMULATED_DELAY);
+    const app = mockApplications.find(a => a.id === id);
+    if (!app) {
+      return { success: false, message: 'Application not found', data: null as unknown as Application };
+    }
+    const updated = { ...app, ...data, updatedAt: new Date().toISOString() };
+    return { success: true, data: updated };
+  },
+};
+export const leaseApi = leasesApi;
+export const paymentApi = {
+  ...paymentsApi,
+  update: async (id: string, data: Partial<Payment>): Promise<ApiResponse<Payment>> => {
+    await delay(SIMULATED_DELAY);
+    const payment = mockPayments.find(p => p.id === id);
+    if (!payment) {
+      return { success: false, message: 'Payment not found', data: null as unknown as Payment };
+    }
+    const updated = { ...payment, ...data, updatedAt: new Date().toISOString() };
+    return { success: true, data: updated };
+  },
+};
+export const messageApi = {
+  ...messagesApi,
+  getAll: async (): Promise<ApiResponse<Message[]>> => {
+    await delay(SIMULATED_DELAY);
+    return { success: true, data: mockMessages };
+  },
+  create: async (data: Omit<Message, 'id' | 'createdAt'>): Promise<ApiResponse<Message>> => {
+    await delay(SIMULATED_DELAY);
+    const newMessage: Message = {
+      ...data,
+      id: `msg-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    return { success: true, data: newMessage };
+  },
+  update: async (id: string, data: Partial<Message>): Promise<ApiResponse<Message>> => {
+    await delay(SIMULATED_DELAY);
+    const message = mockMessages.find(m => m.id === id);
+    if (!message) {
+      return { success: false, message: 'Message not found', data: null as unknown as Message };
+    }
+    const updated = { ...message, ...data };
+    return { success: true, data: updated };
   },
 };

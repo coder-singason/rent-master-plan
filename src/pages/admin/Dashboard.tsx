@@ -244,45 +244,29 @@ function getActivityColor(type: Activity['type']) {
   }
 }
 
-// Placeholder pages for other admin routes
-function UsersPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">User Management</h2><p className="text-muted-foreground">User management interface coming soon...</p></div>;
-}
-function PropertiesPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Property Management</h2><p className="text-muted-foreground">Property management interface coming soon...</p></div>;
-}
-function ApplicationsPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Applications</h2><p className="text-muted-foreground">Applications interface coming soon...</p></div>;
-}
-function LeasesPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Leases</h2><p className="text-muted-foreground">Leases interface coming soon...</p></div>;
-}
-function PaymentsPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Payments</h2><p className="text-muted-foreground">Payments interface coming soon...</p></div>;
-}
-function MaintenancePage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Maintenance</h2><p className="text-muted-foreground">Maintenance interface coming soon...</p></div>;
-}
-function MessagesPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Messages</h2><p className="text-muted-foreground">Messaging interface coming soon...</p></div>;
-}
-function SettingsPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Settings</h2><p className="text-muted-foreground">Settings interface coming soon...</p></div>;
-}
+// Import admin components
+import { UserManagement } from '@/components/admin/UserManagement';
+import { PropertyManagement } from '@/components/admin/PropertyManagement';
+import { ApplicationManagement } from '@/components/admin/ApplicationManagement';
+import { LeaseManagement } from '@/components/admin/LeaseManagement';
+import { PaymentManagement } from '@/components/admin/PaymentManagement';
+import { MaintenanceManagement } from '@/components/admin/MaintenanceManagement';
+import { MessagesManagement } from '@/components/admin/MessagesManagement';
+import { SettingsManagement } from '@/components/admin/SettingsManagement';
 
 export default function AdminDashboard() {
   return (
     <DashboardLayout navItems={adminNavItems} title="Admin Dashboard">
       <Routes>
         <Route index element={<DashboardHome />} />
-        <Route path="users/*" element={<UsersPage />} />
-        <Route path="properties/*" element={<PropertiesPage />} />
-        <Route path="applications/*" element={<ApplicationsPage />} />
-        <Route path="leases/*" element={<LeasesPage />} />
-        <Route path="payments/*" element={<PaymentsPage />} />
-        <Route path="maintenance/*" element={<MaintenancePage />} />
-        <Route path="messages/*" element={<MessagesPage />} />
-        <Route path="settings/*" element={<SettingsPage />} />
+        <Route path="users/*" element={<UserManagement />} />
+        <Route path="properties/*" element={<PropertyManagement />} />
+        <Route path="applications/*" element={<ApplicationManagement />} />
+        <Route path="leases/*" element={<LeaseManagement />} />
+        <Route path="payments/*" element={<PaymentManagement />} />
+        <Route path="maintenance/*" element={<MaintenanceManagement />} />
+        <Route path="messages/*" element={<MessagesManagement />} />
+        <Route path="settings/*" element={<SettingsManagement />} />
       </Routes>
     </DashboardLayout>
   );
