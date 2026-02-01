@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Link } from 'react-router-dom';
 import { DashboardLayout, landlordNavItems } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,8 +11,19 @@ import {
   FileText, 
   Wrench,
   TrendingUp,
-  Clock
+  Clock,
+  ArrowRight,
+  MessageSquare,
+  CreditCard,
 } from 'lucide-react';
+
+// Import landlord components
+import LandlordProperties from '@/components/landlord/LandlordProperties';
+import LandlordApplications from '@/components/landlord/LandlordApplications';
+import LandlordLeases from '@/components/landlord/LandlordLeases';
+import LandlordPayments from '@/components/landlord/LandlordPayments';
+import LandlordMaintenance from '@/components/landlord/LandlordMaintenance';
+import LandlordMessages from '@/components/landlord/LandlordMessages';
 
 function DashboardHome() {
   const { user } = useAuth();
@@ -93,6 +104,17 @@ function DashboardHome() {
 
   return (
     <div className="space-y-6">
+      {/* Welcome Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Welcome, {user?.firstName}!</CardTitle>
+          <CardDescription>
+            Manage your properties, review applications, and communicate with tenants.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {statCards.map((stat) => (
           <Card key={stat.title}>
@@ -111,42 +133,70 @@ function DashboardHome() {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Welcome, {user?.firstName}!</CardTitle>
-          <CardDescription>
-            Manage your properties, review applications, and communicate with tenants.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Full landlord dashboard features coming soon. You'll be able to manage properties, 
-            review tenant applications, view payment statuses, and handle maintenance requests.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+          <Link to="/landlord/properties">
+            <CardContent className="flex items-center gap-4 p-6">
+              <div className="rounded-lg bg-primary/10 p-3">
+                <Building2 className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold">Properties</h3>
+                <p className="text-sm text-muted-foreground">Manage units</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </CardContent>
+          </Link>
+        </Card>
+
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+          <Link to="/landlord/applications">
+            <CardContent className="flex items-center gap-4 p-6">
+              <div className="rounded-lg bg-warning/10 p-3">
+                <FileText className="h-6 w-6 text-warning" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold">Applications</h3>
+                <p className="text-sm text-muted-foreground">Review tenants</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </CardContent>
+          </Link>
+        </Card>
+
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+          <Link to="/landlord/maintenance">
+            <CardContent className="flex items-center gap-4 p-6">
+              <div className="rounded-lg bg-info/10 p-3">
+                <Wrench className="h-6 w-6 text-info" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold">Maintenance</h3>
+                <p className="text-sm text-muted-foreground">Handle requests</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </CardContent>
+          </Link>
+        </Card>
+
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+          <Link to="/landlord/messages">
+            <CardContent className="flex items-center gap-4 p-6">
+              <div className="rounded-lg bg-success/10 p-3">
+                <MessageSquare className="h-6 w-6 text-success" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold">Messages</h3>
+                <p className="text-sm text-muted-foreground">Contact tenants</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </CardContent>
+          </Link>
+        </Card>
+      </div>
     </div>
   );
-}
-
-// Placeholder pages
-function PropertiesPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">My Properties</h2><p className="text-muted-foreground">Property management interface coming soon...</p></div>;
-}
-function ApplicationsPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Tenant Applications</h2><p className="text-muted-foreground">Applications interface coming soon...</p></div>;
-}
-function LeasesPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Leases</h2><p className="text-muted-foreground">Leases interface coming soon...</p></div>;
-}
-function PaymentsPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Payment Status</h2><p className="text-muted-foreground">Payment status interface coming soon...</p></div>;
-}
-function MaintenancePage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Maintenance Requests</h2><p className="text-muted-foreground">Maintenance interface coming soon...</p></div>;
-}
-function MessagesPage() {
-  return <div><h2 className="text-2xl font-bold mb-4">Messages</h2><p className="text-muted-foreground">Messaging interface coming soon...</p></div>;
 }
 
 export default function LandlordDashboard() {
@@ -154,12 +204,12 @@ export default function LandlordDashboard() {
     <DashboardLayout navItems={landlordNavItems} title="Landlord Dashboard">
       <Routes>
         <Route index element={<DashboardHome />} />
-        <Route path="properties/*" element={<PropertiesPage />} />
-        <Route path="applications/*" element={<ApplicationsPage />} />
-        <Route path="leases/*" element={<LeasesPage />} />
-        <Route path="payments/*" element={<PaymentsPage />} />
-        <Route path="maintenance/*" element={<MaintenancePage />} />
-        <Route path="messages/*" element={<MessagesPage />} />
+        <Route path="properties/*" element={<LandlordProperties />} />
+        <Route path="applications/*" element={<LandlordApplications />} />
+        <Route path="leases/*" element={<LandlordLeases />} />
+        <Route path="payments/*" element={<LandlordPayments />} />
+        <Route path="maintenance/*" element={<LandlordMaintenance />} />
+        <Route path="messages/*" element={<LandlordMessages />} />
       </Routes>
     </DashboardLayout>
   );
