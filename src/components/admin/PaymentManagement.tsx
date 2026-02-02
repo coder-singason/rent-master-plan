@@ -472,7 +472,7 @@ export function PaymentManagement() {
                 id="transactionRef"
                 value={recordPaymentData.transactionRef}
                 onChange={(e) => setRecordPaymentData({ ...recordPaymentData, transactionRef: e.target.value })}
-                placeholder="e.g., QKL2024040312345"
+                placeholder="e.g., QKL2026040312345"
               />
             </div>
             <div className="space-y-2">

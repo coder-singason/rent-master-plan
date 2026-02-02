@@ -24,7 +24,8 @@ import {
 import { MessageSquare, Plus, Mail, MailOpen, Send, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { mockMessages, mockUsers, formatDate } from '@/lib/mock-data';
+import { messageApi, userApi } from '@/lib/api';
+import { mockUsers, formatDate } from '@/lib/mock-data';
 import type { Message } from '@/types';
 import { z } from 'zod';
 
@@ -58,30 +59,48 @@ export default function TenantMessages() {
   const contacts = mockUsers.filter((u) => u.role === 'landlord' || u.role === 'admin');
 
   useEffect(() => {
-    // Get messages for the current tenant (sent and received)
-    const tenantId = user?.id || 'tenant-001';
-    const tenantMessages = mockMessages
-      .filter((msg) => msg.senderId === tenantId || msg.receiverId === tenantId)
-      .map((msg) => ({
-        ...msg,
-        sender: mockUsers.find((u) => u.id === msg.senderId) 
-          ? { 
-              firstName: mockUsers.find((u) => u.id === msg.senderId)!.firstName,
-              lastName: mockUsers.find((u) => u.id === msg.senderId)!.lastName,
-              role: mockUsers.find((u) => u.id === msg.senderId)!.role,
-            }
-          : null,
-        receiver: mockUsers.find((u) => u.id === msg.receiverId)
-          ? {
-              firstName: mockUsers.find((u) => u.id === msg.receiverId)!.firstName,
-              lastName: mockUsers.find((u) => u.id === msg.receiverId)!.lastName,
-              role: mockUsers.find((u) => u.id === msg.receiverId)!.role,
-            }
-          : null,
-      }))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const loadMessages = async () => {
+      // Get messages for the current tenant (sent and received)
+      const tenantId = user?.id || 'tenant-001';
 
-    setMessages(tenantMessages);
+      try {
+        const [msgRes, usersRes] = await Promise.all([
+          messageApi.getByUser(tenantId),
+          userApi.getAll()
+        ]);
+
+        if (msgRes.success && msgRes.data) {
+          const myMessages = msgRes.data;
+          const users = usersRes.data || [];
+
+          // Map Details
+          const enrichedMessages = myMessages.map((msg) => ({
+            ...msg,
+            sender: users.find((u) => u.id === msg.senderId)
+              ? {
+                firstName: users.find((u) => u.id === msg.senderId)!.firstName,
+                lastName: users.find((u) => u.id === msg.senderId)!.lastName,
+                role: users.find((u) => u.id === msg.senderId)!.role,
+              }
+              : null,
+            receiver: users.find((u) => u.id === msg.receiverId)
+              ? {
+                firstName: users.find((u) => u.id === msg.receiverId)!.firstName,
+                lastName: users.find((u) => u.id === msg.receiverId)!.lastName,
+                role: users.find((u) => u.id === msg.receiverId)!.role,
+              }
+              : null,
+          })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+          setMessages(enrichedMessages);
+        }
+      } catch (error) {
+        console.error("Failed to load messages", error);
+        setMessages([]);
+      }
+    };
+
+    loadMessages();
   }, [user]);
 
   const handleSendMessage = async () => {
@@ -123,7 +142,7 @@ export default function TenantMessages() {
   const replyToMessage = (message: MessageWithSender) => {
     const senderId = message.senderId;
     const sender = mockUsers.find((u) => u.id === senderId);
-    
+
     setNewMessage({
       receiverId: senderId,
       subject: `Re: ${message.subject}`,
@@ -268,9 +287,8 @@ export default function TenantMessages() {
                 return (
                   <div
                     key={message.id}
-                    className={`flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50 ${
-                      !message.read && !isSent ? 'bg-info/5 border-info/20' : ''
-                    }`}
+                    className={`flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50 ${!message.read && !isSent ? 'bg-info/5 border-info/20' : ''
+                      }`}
                     onClick={() => viewMessage(message)}
                   >
                     <div className="rounded-full bg-muted p-2">
@@ -323,8 +341,8 @@ export default function TenantMessages() {
                       ? `${selectedMessage.receiver.firstName} ${selectedMessage.receiver.lastName}`
                       : 'Unknown'
                     : selectedMessage.sender
-                    ? `${selectedMessage.sender.firstName} ${selectedMessage.sender.lastName}`
-                    : 'Unknown'}
+                      ? `${selectedMessage.sender.firstName} ${selectedMessage.sender.lastName}`
+                      : 'Unknown'}
                   {' • '}
                   {selectedMessage && formatDate(selectedMessage.createdAt)}
                 </>

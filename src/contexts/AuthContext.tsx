@@ -94,10 +94,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await authApi.register(data);
       if (response.success && response.data) {
-        setUser(response.data);
+        // Don't set user here - redirect to login instead
         toast({
           title: 'Registration successful!',
-          description: 'Welcome to RentEase. Your account is pending verification.',
+          description: 'Please sign in with your new account.',
         });
         return true;
       } else {

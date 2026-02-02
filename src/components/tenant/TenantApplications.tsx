@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { FileText, Clock, CheckCircle2, XCircle, Eye, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { applicationsApi } from '@/lib/api';
 import { mockApplications, mockUnits, mockProperties, formatCurrency, formatDate } from '@/lib/mock-data';
 import type { Application, ApplicationStatus, RecommendationStatus } from '@/types';
 
@@ -55,28 +56,44 @@ export default function TenantApplications() {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
   useEffect(() => {
-    // Filter applications for the current tenant
-    const tenantApplications = mockApplications
-      .filter((app) => app.tenantId === user?.id || app.tenantId === 'tenant-001')
-      .map((app) => {
-        const unit = mockUnits.find((u) => u.id === app.unitId);
-        const property = unit ? mockProperties.find((p) => p.id === unit.propertyId) : null;
-        return {
-          ...app,
-          unit: unit ? {
-            unitNumber: unit.unitNumber,
-            type: unit.type,
-            rentAmount: unit.rentAmount,
-          } : { unitNumber: 'N/A', type: 'N/A', rentAmount: 0 },
-          property: property ? {
-            name: property.name,
-            address: property.address,
-            city: property.city,
-          } : { name: 'N/A', address: 'N/A', city: 'N/A' },
-        };
-      });
+    const loadApplications = async () => {
+      if (!user) return;
+      try {
+        const response = await applicationsApi.getByTenant(user.id);
+        if (response.success && response.data) {
+          // Enrich with unit and property details which might need separate API calls 
+          // or we can assume the API should return enriched data.
+          // For now, let's map using the same logic but on the fetched data
 
-    setApplications(tenantApplications);
+          // Note: In a real app the API would return relations.
+          // Here we still need to grab unit/property info.
+          // Ideally we should refactor api.ts to return relations, but for quick fix:
+
+          const enriched = response.data.map((app) => {
+            const unit = mockUnits.find((u) => u.id === app.unitId);
+            const property = unit ? mockProperties.find((p) => p.id === unit.propertyId) : null;
+            return {
+              ...app,
+              unit: unit ? {
+                unitNumber: unit.unitNumber,
+                type: unit.type,
+                rentAmount: unit.rentAmount,
+              } : { unitNumber: 'N/A', type: 'N/A', rentAmount: 0 },
+              property: property ? {
+                name: property.name,
+                address: property.address,
+                city: property.city,
+              } : { name: 'N/A', address: 'N/A', city: 'N/A' },
+            };
+          });
+          setApplications(enriched);
+        }
+      } catch (error) {
+        console.error("Failed to load applications", error);
+      }
+    };
+
+    loadApplications();
   }, [user]);
 
   const viewDetails = (application: ApplicationWithDetails) => {

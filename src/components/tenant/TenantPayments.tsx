@@ -11,7 +11,8 @@ import {
 } from '@/components/ui/table';
 import { CreditCard, CheckCircle2, Clock, AlertTriangle, DollarSign, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockPayments, mockLeases, mockUnits, mockProperties, formatCurrency, formatDate } from '@/lib/mock-data';
+import { paymentApi, leaseApi, unitApi, propertyApi } from '@/lib/api';
+import { formatCurrency, formatDate } from '@/lib/mock-data';
 import type { Payment, PaymentStatus } from '@/types';
 
 interface PaymentWithDetails extends Payment {
@@ -35,23 +36,55 @@ export default function TenantPayments() {
   const [payments, setPayments] = useState<PaymentWithDetails[]>([]);
 
   useEffect(() => {
-    // Get payments for the current tenant
-    const tenantPayments = mockPayments
-      .filter((payment) => payment.tenantId === user?.id || payment.tenantId === 'tenant-001')
-      .map((payment) => {
-        const lease = mockLeases.find((l) => l.id === payment.leaseId);
-        const unit = lease ? mockUnits.find((u) => u.id === lease.unitId) : null;
-        const property = unit ? mockProperties.find((p) => p.id === unit.propertyId) : null;
+    const loadPayments = async () => {
+      if (!user) return;
+      try {
+        // 1. Get Tenant's Payments
+        const paymentRes = await paymentApi.getByTenant(user.id);
 
-        return {
-          ...payment,
-          unit: unit ? { unitNumber: unit.unitNumber } : { unitNumber: 'N/A' },
-          property: property ? { name: property.name } : { name: 'N/A' },
-        };
-      })
-      .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+        if (paymentRes.success && paymentRes.data) {
+          const myPayments = paymentRes.data;
 
-    setPayments(tenantPayments);
+          if (myPayments.length === 0) {
+            setPayments([]);
+            return;
+          }
+
+          // 2. Fetch dependencies
+          // Need leases to trace unit/property from payment if payment only has leaseId
+          // Need units and properties
+          const [leasesRes, unitsRes, propsRes] = await Promise.all([
+            leaseApi.getAll(),
+            unitApi.getAll(),
+            propertyApi.getAll()
+          ]);
+
+          const leases = leasesRes.data || [];
+          const units = unitsRes.data || [];
+          const properties = propsRes.data || [];
+
+          // 3. Map Details
+          const enrichedPayments = myPayments.map((payment) => {
+            const lease = leases.find((l) => l.id === payment.leaseId);
+            const unit = lease ? units.find((u) => u.id === lease.unitId) : null;
+            const property = unit ? properties.find((p) => p.id === unit.propertyId) : null;
+
+            return {
+              ...payment,
+              unit: unit ? { unitNumber: unit.unitNumber } : { unitNumber: 'N/A' },
+              property: property ? { name: property.name } : { name: 'N/A' },
+            };
+          }).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+
+          setPayments(enrichedPayments);
+        }
+      } catch (error) {
+        console.error("Failed to load payments", error);
+        setPayments([]);
+      }
+    };
+
+    loadPayments();
   }, [user]);
 
   const stats = {
@@ -141,8 +174,8 @@ export default function TenantPayments() {
             <div className="flex-1">
               <h4 className="font-semibold text-destructive">Payment Overdue</h4>
               <p className="text-sm text-muted-foreground">
-                You have an overdue payment of {formatCurrency(stats.nextDue.amount + (stats.nextDue.lateFee || 0))} 
-                (includes {formatCurrency(stats.nextDue.lateFee || 0)} late fee). 
+                You have an overdue payment of {formatCurrency(stats.nextDue.amount + (stats.nextDue.lateFee || 0))}
+                (includes {formatCurrency(stats.nextDue.lateFee || 0)} late fee).
                 Please contact your landlord or administrator.
               </p>
             </div>
@@ -261,7 +294,7 @@ export default function TenantPayments() {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Note: Payments may take up to 24 hours to reflect in your account. 
+            Note: Payments may take up to 24 hours to reflect in your account.
             Contact support if your payment doesn't show after this period.
           </p>
         </CardContent>

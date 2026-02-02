@@ -40,8 +40,9 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { maintenanceApi, unitApi, propertyApi } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { mockMaintenanceRequests, mockUnits, mockProperties, mockUsers, formatDate } from '@/lib/mock-data';
+import { mockUsers, formatDate } from '@/lib/mock-data';
 import type { MaintenanceRequest, MaintenanceStatus, MaintenancePriority, MaintenanceCategory } from '@/types';
 import { z } from 'zod';
 
@@ -98,22 +99,50 @@ export default function TenantMaintenance() {
   });
 
   useEffect(() => {
-    // Get maintenance requests for the current tenant
-    const tenantRequests = mockMaintenanceRequests
-      .filter((req) => req.tenantId === user?.id || req.tenantId === 'tenant-001')
-      .map((req) => {
-        const unit = mockUnits.find((u) => u.id === req.unitId);
-        const property = unit ? mockProperties.find((p) => p.id === unit.propertyId) : null;
+    const loadRequests = async () => {
+      if (!user) return;
+      try {
+        // 1. Get Tenant's Maintenance Requests
+        const res = await maintenanceApi.getByTenant(user.id);
 
-        return {
-          ...req,
-          unit: unit ? { unitNumber: unit.unitNumber } : { unitNumber: 'N/A' },
-          property: property ? { name: property.name } : { name: 'N/A' },
-        };
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        if (res.success && res.data) {
+          const myRequests = res.data;
 
-    setRequests(tenantRequests);
+          if (myRequests.length === 0) {
+            setRequests([]);
+            return;
+          }
+
+          // 2. Fetch dependencies (Units, Properties)
+          const [unitsRes, propsRes] = await Promise.all([
+            unitApi.getAll(),
+            propertyApi.getAll()
+          ]);
+
+          const units = unitsRes.data || [];
+          const properties = propsRes.data || [];
+
+          // 3. Map Details
+          const enrichedRequests = myRequests.map((req) => {
+            const unit = units.find((u) => u.id === req.unitId);
+            const property = unit ? properties.find((p) => p.id === unit.propertyId) : null;
+
+            return {
+              ...req,
+              unit: unit ? { unitNumber: unit.unitNumber } : { unitNumber: 'N/A' },
+              property: property ? { name: property.name } : { name: 'N/A' },
+            };
+          }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+          setRequests(enrichedRequests);
+        }
+      } catch (error) {
+        console.error("Failed to load maintenance requests", error);
+        setRequests([]);
+      }
+    };
+
+    loadRequests();
   }, [user]);
 
   const handleSubmitRequest = async () => {

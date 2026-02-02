@@ -2,12 +2,12 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Building2, 
-  Shield, 
-  Users, 
-  CreditCard, 
-  Wrench, 
+import {
+  Building2,
+  Shield,
+  Users,
+  CreditCard,
+  Wrench,
   MessageSquare,
   ArrowRight,
   CheckCircle2,
@@ -15,6 +15,8 @@ import {
   Home
 } from 'lucide-react';
 import { mockProperties, mockUnits, formatCurrency } from '@/lib/mock-data';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
 
 export default function Index() {
   const featuredUnits = mockUnits
@@ -27,38 +29,7 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">RentEase</span>
-          </div>
-          
-          <nav className="hidden items-center gap-6 md:flex">
-            <Link to="/listings" className="text-sm text-muted-foreground hover:text-foreground">
-              Browse Listings
-            </Link>
-            <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground">
-              About
-            </Link>
-            <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground">
-              Contact
-            </Link>
-          </nav>
-          
-          <div className="flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="ghost">Sign in</Button>
-            </Link>
-            <Link to="/register">
-              <Button>Get Started</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary/5 via-background to-primary/10 py-20">
@@ -71,7 +42,7 @@ export default function Index() {
             <span className="text-primary"> Home</span>
           </h1>
           <p className="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
-            Whether you're a tenant looking for your next home, a landlord managing properties, 
+            Whether you're a tenant looking for your next home, a landlord managing properties,
             or an administrator overseeing everything—RentEase makes property management seamless.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
@@ -99,7 +70,7 @@ export default function Index() {
               Comprehensive tools for tenants, landlords, and administrators
             </p>
           </div>
-          
+
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader>
@@ -112,7 +83,7 @@ export default function Index() {
                 </CardDescription>
               </CardHeader>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
@@ -124,7 +95,7 @@ export default function Index() {
                 </CardDescription>
               </CardHeader>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
@@ -136,7 +107,7 @@ export default function Index() {
                 </CardDescription>
               </CardHeader>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
@@ -148,7 +119,7 @@ export default function Index() {
                 </CardDescription>
               </CardHeader>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
@@ -160,7 +131,7 @@ export default function Index() {
                 </CardDescription>
               </CardHeader>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -191,7 +162,7 @@ export default function Index() {
               </Button>
             </Link>
           </div>
-          
+
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {featuredUnits.map((unit) => (
               <Card key={unit.id} className="overflow-hidden">
@@ -212,12 +183,12 @@ export default function Index() {
                       {unit.bedrooms === 0 ? 'Studio' : `${unit.bedrooms} BR`}
                     </Badge>
                   </div>
-                  
+
                   <div className="mb-3 flex items-center gap-1 text-sm text-muted-foreground">
                     <MapPin className="h-3 w-3" />
                     {unit.property.city}
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-lg font-bold">{formatCurrency(unit.rentAmount)}</span>
@@ -243,7 +214,7 @@ export default function Index() {
               Get started in three simple steps
             </p>
           </div>
-          
+
           <div className="grid gap-8 md:grid-cols-3">
             <div className="text-center">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
@@ -254,7 +225,7 @@ export default function Index() {
                 Sign up for free and complete your profile verification
               </p>
             </div>
-            
+
             <div className="text-center">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
                 2
@@ -264,7 +235,7 @@ export default function Index() {
                 Browse listings, submit applications, and get approved
               </p>
             </div>
-            
+
             <div className="text-center">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
                 3
@@ -303,54 +274,7 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t bg-card py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid gap-8 md:grid-cols-4">
-            <div>
-              <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <Building2 className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <span className="font-bold">RentEase</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Kenya's premier property management platform for modern living.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="mb-4 font-semibold">Platform</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/listings" className="hover:text-foreground">Browse Listings</Link></li>
-                <li><Link to="/register" className="hover:text-foreground">For Tenants</Link></li>
-                <li><Link to="/register" className="hover:text-foreground">For Landlords</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="mb-4 font-semibold">Company</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/about" className="hover:text-foreground">About Us</Link></li>
-                <li><Link to="/contact" className="hover:text-foreground">Contact</Link></li>
-                <li><Link to="/careers" className="hover:text-foreground">Careers</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="mb-4 font-semibold">Legal</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/privacy" className="hover:text-foreground">Privacy Policy</Link></li>
-                <li><Link to="/terms" className="hover:text-foreground">Terms of Service</Link></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2024 RentEase. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

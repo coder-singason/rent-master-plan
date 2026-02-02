@@ -9,14 +9,15 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Building2, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const [email, setEmail] = useState(location.state?.email || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  // location is already defined above
 
   // Get redirect destination from state or default to dashboard
   const from = location.state?.from?.pathname;
@@ -46,6 +47,12 @@ export default function Login() {
           </div>
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>Sign in to your RentEase account</CardDescription>
+
+          {location.state?.message && (
+            <div className="mt-4 rounded-md bg-green-50 p-3 text-sm text-green-600 dark:bg-green-900/30 dark:text-green-400">
+              {location.state.message}
+            </div>
+          )}
         </CardHeader>
 
         <form onSubmit={handleSubmit}>

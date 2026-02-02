@@ -79,8 +79,13 @@ export default function Register() {
     });
 
     if (success) {
-      const user = JSON.parse(localStorage.getItem('auth_user') || '{}');
-      navigate(getDashboardPath(user.role), { replace: true });
+      navigate('/login', {
+        replace: true,
+        state: {
+          email: formData.email,
+          message: 'Registration successful! Please sign in.'
+        }
+      });
     }
 
     setIsSubmitting(false);

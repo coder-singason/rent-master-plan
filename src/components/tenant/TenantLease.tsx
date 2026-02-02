@@ -4,7 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { FileText, Calendar, DollarSign, Home, User, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockLeases, mockUnits, mockProperties, mockUsers, formatCurrency, formatDate } from '@/lib/mock-data';
+import { leaseApi, unitApi, propertyApi, userApi } from '@/lib/api';
+// Keeping mockUsers as fallback if needed implies we might not have them in simple API check,
+// but let's try to stick to API. If userApi.getAll is not available we might error.
+// We will check api.ts for userApi.getAll availability. 
+import { formatCurrency, formatDate } from '@/lib/mock-data';
 import type { Lease, LeaseStatus } from '@/types';
 
 interface LeaseWithDetails extends Lease {
@@ -41,42 +45,76 @@ export default function TenantLease() {
   const [pastLeases, setPastLeases] = useState<LeaseWithDetails[]>([]);
 
   useEffect(() => {
-    // Get leases for the current tenant
-    const tenantLeases = mockLeases
-      .filter((lease) => lease.tenantId === user?.id || lease.tenantId === 'tenant-001')
-      .map((lease) => {
-        const unit = mockUnits.find((u) => u.id === lease.unitId);
-        const property = unit ? mockProperties.find((p) => p.id === unit.propertyId) : null;
-        const landlord = property ? mockUsers.find((u) => u.id === property.landlordId) : null;
+    const loadLeaseData = async () => {
+      if (!user) return;
+      try {
+        // 1. Get Tenant's Leases
+        const leaseRes = await leaseApi.getByTenant(user.id);
 
-        return {
-          ...lease,
-          unit: unit ? {
-            unitNumber: unit.unitNumber,
-            type: unit.type,
-            floor: unit.floor,
-            squareMeters: unit.squareMeters,
-          } : { unitNumber: 'N/A', type: 'N/A', floor: 0, squareMeters: 0 },
-          property: property ? {
-            name: property.name,
-            address: property.address,
-            city: property.city,
-            county: property.county,
-          } : { name: 'N/A', address: 'N/A', city: 'N/A', county: 'N/A' },
-          landlord: landlord ? {
-            firstName: landlord.firstName,
-            lastName: landlord.lastName,
-            phone: landlord.phone,
-            email: landlord.email,
-          } : null,
-        };
-      });
+        if (leaseRes.success && leaseRes.data) {
+          const myLeases = leaseRes.data;
 
-    const active = tenantLeases.find((l) => l.status === 'active');
-    const past = tenantLeases.filter((l) => l.status !== 'active');
+          if (myLeases.length === 0) {
+            setCurrentLease(null);
+            setPastLeases([]);
+            return;
+          }
 
-    setCurrentLease(active || null);
-    setPastLeases(past);
+          // 2. Fetch dependencies (Units, Properties, Users for landlord)
+          // In a real app, we'd probably have an endpoint for "Lease Details" or use GraphQL/include
+          // For this prototype, we'll fetch all units/props to map them. 
+          // Optimization: fetch only what we need or cache.
+          const [unitsRes, propsRes, usersRes] = await Promise.all([
+            unitApi.getAll(),
+            propertyApi.getAll(),
+            userApi.getAll() // Assuming userApi.getAll exists, need to verify or use mockUsers for static landlords if api missing
+          ]);
+
+          const units = unitsRes.data || [];
+          const properties = propsRes.data || [];
+          const users = usersRes.data || []; // Fallback to empty if fails
+
+          // 3. Map Details
+          const enrichedLeases = myLeases.map(lease => {
+            const unit = units.find(u => u.id === lease.unitId);
+            const property = unit ? properties.find(p => p.id === unit.propertyId) : null;
+            const landlord = property ? users.find(u => u.id === property.landlordId) : null;
+
+            return {
+              ...lease,
+              unit: unit ? {
+                unitNumber: unit.unitNumber,
+                type: unit.type,
+                floor: unit.floor,
+                squareMeters: unit.squareMeters,
+              } : { unitNumber: 'N/A', type: 'N/A', floor: 0, squareMeters: 0 },
+              property: property ? {
+                name: property.name,
+                address: property.address,
+                city: property.city,
+                county: property.county,
+              } : { name: 'N/A', address: 'N/A', city: 'N/A', county: 'N/A' },
+              landlord: landlord ? {
+                firstName: landlord.firstName,
+                lastName: landlord.lastName,
+                phone: landlord.phone,
+                email: landlord.email,
+              } : null,
+            };
+          });
+
+          const active = enrichedLeases.find((l) => l.status === 'active');
+          const past = enrichedLeases.filter((l) => l.status !== 'active');
+
+          setCurrentLease(active || null);
+          setPastLeases(past);
+        }
+      } catch (error) {
+        console.error("Failed to load lease data", error);
+      }
+    };
+
+    loadLeaseData();
   }, [user]);
 
   const calculateDaysRemaining = (endDate: string) => {

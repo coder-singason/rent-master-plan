@@ -169,13 +169,8 @@ export const authApi = {
     users.push(newUser);
     saveToStorage(STORAGE_KEYS.USERS, users);
 
-    // Auto login
-    const authUser: AuthUser = {
-      ...newUser,
-      token: `mock_jwt_token_new_${Date.now()}`,
-    };
-
-    localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(authUser));
+    // No auto login - just return user data without token
+    // The auth context will handle redirection to login
 
     // Log Activity
     const activities = getFromStorage<Activity>(STORAGE_KEYS.ACTIVITIES);
@@ -187,6 +182,13 @@ export const authApi = {
       createdAt: new Date().toISOString(),
     });
     saveToStorage(STORAGE_KEYS.ACTIVITIES, activities);
+
+    // Return user but without a meaningful token since they aren't logged in yet
+    // The frontend will ignore the token anyway
+    const authUser: AuthUser = {
+      ...newUser,
+      token: '',
+    };
 
     return { success: true, data: authUser };
   },

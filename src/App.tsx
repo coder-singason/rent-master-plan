@@ -14,6 +14,11 @@ import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Listings from "./pages/public/Listings";
 import ListingDetail from "./pages/public/ListingDetail";
+import About from "./pages/public/About";
+import Contact from "./pages/public/Contact";
+import Privacy from "./pages/public/Privacy";
+import Terms from "./pages/public/Terms";
+import Careers from "./pages/public/Careers";
 
 // Dashboard pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -37,6 +42,11 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/listings" element={<Listings />} />
             <Route path="/listings/:id" element={<ListingDetail />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/careers" element={<Careers />} />
 
             {/* Admin routes */}
             <Route
