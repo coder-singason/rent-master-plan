@@ -24,7 +24,8 @@ import {
 import { MessageSquare, Plus, Mail, MailOpen, Send, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { mockMessages, mockUsers, mockLeases, mockUnits, mockProperties, formatDate } from '@/lib/mock-data';
+import { messageApi, userApi, leaseApi, unitApi, propertyApi } from '@/lib/api';
+import { formatDate } from '@/lib/mock-data';
 import type { Message } from '@/types';
 import { z } from 'zod';
 
@@ -53,66 +54,114 @@ export default function LandlordMessages() {
     subject: '',
     content: '',
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [contacts, setContacts] = useState<any[]>([]);
 
-  // Get tenants from properties owned by this landlord
-  const landlordId = user?.id || 'landlord-001';
-  const myPropertyIds = mockProperties
-    .filter((p) => p.landlordId === landlordId)
-    .map((p) => p.id);
-
-  const myUnitIds = mockUnits
-    .filter((u) => myPropertyIds.includes(u.propertyId))
-    .map((u) => u.id);
-
-  const myTenantIds = [...new Set(mockLeases
-    .filter((l) => myUnitIds.includes(l.unitId))
-    .map((l) => l.tenantId))];
-
-  const tenants = mockUsers.filter((u) => myTenantIds.includes(u.id));
-  const admins = mockUsers.filter((u) => u.role === 'admin');
-  const contacts = [...tenants, ...admins];
-
+  // Load contacts (tenants + admins)
   useEffect(() => {
-    // Get messages for this landlord (sent and received)
-    const landlordMessages = mockMessages
-      .filter((msg) => msg.senderId === landlordId || msg.receiverId === landlordId)
-      .map((msg) => ({
-        ...msg,
-        sender: mockUsers.find((u) => u.id === msg.senderId) 
-          ? { 
-              firstName: mockUsers.find((u) => u.id === msg.senderId)!.firstName,
-              lastName: mockUsers.find((u) => u.id === msg.senderId)!.lastName,
-              role: mockUsers.find((u) => u.id === msg.senderId)!.role,
-            }
-          : null,
-        receiver: mockUsers.find((u) => u.id === msg.receiverId)
-          ? {
-              firstName: mockUsers.find((u) => u.id === msg.receiverId)!.firstName,
-              lastName: mockUsers.find((u) => u.id === msg.receiverId)!.lastName,
-              role: mockUsers.find((u) => u.id === msg.receiverId)!.role,
-            }
-          : null,
-      }))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const loadContacts = async () => {
+      if (!user) return;
+      try {
+        // Get landlord's properties
+        const propsRes = await propertyApi.getByLandlord(user.id);
+        if (!propsRes.success || !propsRes.data) return;
+        const myPropertyIds = propsRes.data.map(p => p.id);
 
-    setMessages(landlordMessages);
-  }, [landlordId]);
+        // Get units for these properties
+        const unitsRes = await unitApi.getAll();
+        const allUnits = unitsRes.data || [];
+        const myUnits = allUnits.filter(u => myPropertyIds.includes(u.propertyId));
+        const myUnitIds = myUnits.map(u => u.id);
+
+        // Get leases for these units
+        const leasesRes = await leaseApi.getAll();
+        const allLeases = leasesRes.data || [];
+        const myTenantIds = [...new Set(allLeases.filter(l => myUnitIds.includes(l.unitId)).map(l => l.tenantId))];
+
+        // Get all users
+        const usersRes = await userApi.getAll();
+        const allUsers = usersRes.data || [];
+
+        const tenants = allUsers.filter(u => myTenantIds.includes(u.id));
+        const admins = allUsers.filter(u => u.role === 'admin');
+        setContacts([...tenants, ...admins]);
+      } catch (error) {
+        console.error('Failed to load contacts', error);
+      }
+    };
+    loadContacts();
+  }, [user]);
+
+  // Load messages
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!user) return;
+      setIsLoading(true);
+      try {
+        // Get all messages for this landlord
+        const messagesRes = await messageApi.getByUser(user.id);
+        const allMessages = messagesRes.data || [];
+
+        // Get all users for sender/receiver details
+        const usersRes = await userApi.getAll();
+        const allUsers = usersRes.data || [];
+
+        // Enrich messages
+        const enriched: MessageWithSender[] = allMessages.map(msg => {
+          const sender = allUsers.find(u => u.id === msg.senderId);
+          const receiver = allUsers.find(u => u.id === msg.receiverId);
+
+          return {
+            ...msg,
+            sender: sender ? {
+              firstName: sender.firstName,
+              lastName: sender.lastName,
+              role: sender.role,
+            } : null,
+            receiver: receiver ? {
+              firstName: receiver.firstName,
+              lastName: receiver.lastName,
+              role: receiver.role,
+            } : null,
+          };
+        }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        setMessages(enriched);
+      } catch (error) {
+        console.error('Failed to load messages', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadMessages();
+  }, [user, refreshTrigger]);
 
   const handleSendMessage = async () => {
+    if (!user) return;
     try {
       messageSchema.parse(newMessage);
       setFormErrors({});
       setIsSubmitting(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      toast({
-        title: 'Message Sent',
-        description: 'Your message has been sent successfully.',
+      const res = await messageApi.send({
+        senderId: user.id,
+        receiverId: newMessage.receiverId,
+        subject: newMessage.subject,
+        content: newMessage.content,
       });
 
-      setShowComposeDialog(false);
-      setNewMessage({ receiverId: '', subject: '', content: '' });
+      if (res.success) {
+        toast({
+          title: 'Message Sent',
+          description: 'Your message has been sent successfully.',
+        });
+        setShowComposeDialog(false);
+        setNewMessage({ receiverId: '', subject: '', content: '' });
+        setRefreshTrigger(prev => prev + 1);
+      } else {
+        toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         const errors: Record<string, string> = {};
@@ -143,7 +192,7 @@ export default function LandlordMessages() {
     setShowComposeDialog(true);
   };
 
-  const unreadCount = messages.filter((m) => m.receiverId === landlordId && !m.read).length;
+  const unreadCount = messages.filter((m) => m.receiverId === user?.id && !m.read).length;
 
   return (
     <div className="space-y-6">
@@ -240,7 +289,11 @@ export default function LandlordMessages() {
           <CardTitle>Inbox</CardTitle>
         </CardHeader>
         <CardContent>
-          {messages.length === 0 ? (
+          {isLoading ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">Loading messages...</p>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="py-12 text-center">
               <MessageSquare className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
               <h3 className="mb-2 text-lg font-semibold">No messages yet</h3>
@@ -253,15 +306,14 @@ export default function LandlordMessages() {
           ) : (
             <div className="space-y-2">
               {messages.map((message) => {
-                const isSent = message.senderId === landlordId;
+                const isSent = message.senderId === user?.id;
                 const otherParty = isSent ? message.receiver : message.sender;
 
                 return (
                   <div
                     key={message.id}
-                    className={`flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50 ${
-                      !message.read && !isSent ? 'bg-info/5 border-info/20' : ''
-                    }`}
+                    className={`flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50 ${!message.read && !isSent ? 'bg-info/5 border-info/20' : ''
+                      }`}
                     onClick={() => viewMessage(message)}
                   >
                     <div className="rounded-full bg-muted p-2">
@@ -312,8 +364,8 @@ export default function LandlordMessages() {
                       ? `${selectedMessage.receiver.firstName} ${selectedMessage.receiver.lastName}`
                       : 'Unknown'
                     : selectedMessage.sender
-                    ? `${selectedMessage.sender.firstName} ${selectedMessage.sender.lastName}`
-                    : 'Unknown'}
+                      ? `${selectedMessage.sender.firstName} ${selectedMessage.sender.lastName}`
+                      : 'Unknown'}
                   {' • '}
                   {formatDate(selectedMessage.createdAt)}
                 </>
@@ -327,7 +379,7 @@ export default function LandlordMessages() {
                 <p className="whitespace-pre-wrap">{selectedMessage.content}</p>
               </div>
 
-              {selectedMessage.senderId !== landlordId && (
+              {selectedMessage.senderId !== user?.id && (
                 <Button onClick={() => replyToMessage(selectedMessage)} className="w-full gap-2">
                   <Send className="h-4 w-4" />
                   Reply

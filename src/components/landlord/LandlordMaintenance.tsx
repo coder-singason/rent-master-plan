@@ -30,7 +30,8 @@ import {
 import { Wrench, Clock, CheckCircle2, XCircle, Eye, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { mockMaintenanceRequests, mockUnits, mockProperties, mockUsers, formatDate } from '@/lib/mock-data';
+import { maintenanceApi, unitApi, propertyApi, userApi } from '@/lib/api';
+import { formatDate } from '@/lib/mock-data';
 import type { MaintenanceRequest, MaintenanceStatus, MaintenancePriority } from '@/types';
 
 interface RequestWithDetails extends MaintenanceRequest {
@@ -63,40 +64,66 @@ export default function LandlordMaintenance() {
   const [newStatus, setNewStatus] = useState<MaintenanceStatus>('open');
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    // Get maintenance requests for properties owned by this landlord
-    const landlordId = user?.id || 'landlord-001';
-    const myPropertyIds = mockProperties
-      .filter((p) => p.landlordId === landlordId)
-      .map((p) => p.id);
+    const loadRequests = async () => {
+      if (!user) return;
+      setIsLoading(true);
+      try {
+        // 1. Get landlord's properties
+        const propsRes = await propertyApi.getByLandlord(user.id);
+        if (!propsRes.success || !propsRes.data) {
+          setRequests([]);
+          return;
+        }
+        const myPropertyIds = propsRes.data.map(p => p.id);
 
-    const myUnitIds = mockUnits
-      .filter((u) => myPropertyIds.includes(u.propertyId))
-      .map((u) => u.id);
+        // 2. Get units for these properties
+        const unitsRes = await unitApi.getAll();
+        const allUnits = unitsRes.data || [];
+        const myUnits = allUnits.filter(u => myPropertyIds.includes(u.propertyId));
+        const myUnitIds = myUnits.map(u => u.id);
 
-    const myRequests = mockMaintenanceRequests
-      .filter((req) => myUnitIds.includes(req.unitId))
-      .map((req) => {
-        const unit = mockUnits.find((u) => u.id === req.unitId);
-        const property = unit ? mockProperties.find((p) => p.id === unit.propertyId) : null;
-        const tenant = mockUsers.find((u) => u.id === req.tenantId);
+        // 3. Get all maintenance requests
+        const requestsRes = await maintenanceApi.getAll();
+        const allRequests = requestsRes.data || [];
+        const myRequests = allRequests.filter(req => myUnitIds.includes(req.unitId));
 
-        return {
-          ...req,
-          unit: unit ? { unitNumber: unit.unitNumber } : { unitNumber: 'N/A' },
-          property: property ? { name: property.name } : { name: 'N/A' },
-          tenant: tenant ? {
-            firstName: tenant.firstName,
-            lastName: tenant.lastName,
-            phone: tenant.phone,
-          } : null,
-        };
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // 4. Get all users for tenant details
+        const usersRes = await userApi.getAll();
+        const allUsers = usersRes.data || [];
 
-    setRequests(myRequests);
-  }, [user]);
+        // 5. Enrich requests
+        const enriched: RequestWithDetails[] = myRequests.map(req => {
+          const unit = myUnits.find(u => u.id === req.unitId);
+          const property = unit ? propsRes.data?.find(p => p.id === unit.propertyId) : null;
+          const tenant = allUsers.find(u => u.id === req.tenantId);
+
+          return {
+            ...req,
+            unit: unit ? { unitNumber: unit.unitNumber } : { unitNumber: 'N/A' },
+            property: property ? { name: property.name } : { name: 'N/A' },
+            tenant: tenant ? {
+              firstName: tenant.firstName,
+              lastName: tenant.lastName,
+              phone: tenant.phone,
+            } : null,
+          };
+        }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        setRequests(enriched);
+      } catch (error) {
+        console.error('Failed to load maintenance requests', error);
+        setRequests([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadRequests();
+  }, [user, refreshTrigger]);
 
   const viewDetails = (request: RequestWithDetails) => {
     setSelectedRequest(request);
@@ -111,16 +138,42 @@ export default function LandlordMaintenance() {
   };
 
   const handleUpdateRequest = async () => {
+    if (!selectedRequest) return;
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    toast({
-      title: 'Request Updated',
-      description: 'The maintenance request has been updated successfully.',
-    });
+    try {
+      const updateData: any = { status: newStatus };
 
-    setShowUpdateDialog(false);
-    setIsSubmitting(false);
+      // Add comment if provided
+      if (newComment.trim()) {
+        updateData.comments = [
+          ...selectedRequest.comments,
+          {
+            id: `comment-${Date.now()}`,
+            userId: user?.id || 'landlord-001',
+            content: newComment,
+            createdAt: new Date().toISOString(),
+          },
+        ];
+      }
+
+      const res = await maintenanceApi.update(selectedRequest.id, updateData);
+
+      if (res.success) {
+        toast({
+          title: 'Request Updated',
+          description: 'The maintenance request has been updated successfully.',
+        });
+        setShowUpdateDialog(false);
+        setRefreshTrigger(prev => prev + 1);
+      } else {
+        toast({ title: 'Error', description: 'Failed to update request', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update request', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const stats = {
@@ -199,7 +252,11 @@ export default function LandlordMaintenance() {
           <CardTitle>All Requests</CardTitle>
         </CardHeader>
         <CardContent>
-          {requests.length === 0 ? (
+          {isLoading ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">Loading maintenance requests...</p>
+            </div>
+          ) : requests.length === 0 ? (
             <div className="py-12 text-center">
               <Wrench className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
               <h3 className="mb-2 text-lg font-semibold">No maintenance requests</h3>
@@ -319,22 +376,17 @@ export default function LandlordMaintenance() {
                 <div>
                   <p className="mb-2 text-sm font-medium">Comments</p>
                   <div className="space-y-2">
-                    {selectedRequest.comments.map((comment) => {
-                      const commenter = mockUsers.find((u) => u.id === comment.userId);
-                      return (
-                        <div key={comment.id} className="rounded-lg bg-muted/50 p-3">
-                          <div className="mb-1 flex items-center justify-between">
-                            <span className="text-sm font-medium">
-                              {commenter ? `${commenter.firstName} ${commenter.lastName}` : 'Staff'}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(comment.createdAt)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{comment.content}</p>
+                    {selectedRequest.comments.map((comment) => (
+                      <div key={comment.id} className="rounded-lg bg-muted/50 p-3">
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="text-sm font-medium">Staff</span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(comment.createdAt)}
+                          </span>
                         </div>
-                      );
-                    })}
+                        <p className="text-sm text-muted-foreground">{comment.content}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

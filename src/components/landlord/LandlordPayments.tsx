@@ -11,7 +11,8 @@ import {
 } from '@/components/ui/table';
 import { CreditCard, CheckCircle2, Clock, AlertTriangle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockPayments, mockLeases, mockUnits, mockProperties, mockUsers, formatDate } from '@/lib/mock-data';
+import { paymentApi, leaseApi, unitApi, propertyApi, userApi } from '@/lib/api';
+import { formatDate } from '@/lib/mock-data';
 import type { Payment, PaymentStatus } from '@/types';
 
 interface PaymentWithDetails extends Payment {
@@ -30,43 +31,70 @@ const statusConfig: Record<PaymentStatus, { label: string; variant: 'default' | 
 export default function LandlordPayments() {
   const { user } = useAuth();
   const [payments, setPayments] = useState<PaymentWithDetails[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get payments for leases in properties owned by this landlord
-    const landlordId = user?.id || 'landlord-001';
-    const myPropertyIds = mockProperties
-      .filter((p) => p.landlordId === landlordId)
-      .map((p) => p.id);
+    const loadPayments = async () => {
+      if (!user) return;
+      setIsLoading(true);
+      try {
+        // 1. Get landlord's properties
+        const propsRes = await propertyApi.getByLandlord(user.id);
+        if (!propsRes.success || !propsRes.data) {
+          setPayments([]);
+          return;
+        }
+        const myPropertyIds = propsRes.data.map(p => p.id);
 
-    const myUnitIds = mockUnits
-      .filter((u) => myPropertyIds.includes(u.propertyId))
-      .map((u) => u.id);
+        // 2. Get units for these properties
+        const unitsRes = await unitApi.getAll();
+        const allUnits = unitsRes.data || [];
+        const myUnits = allUnits.filter(u => myPropertyIds.includes(u.propertyId));
+        const myUnitIds = myUnits.map(u => u.id);
 
-    const myLeaseIds = mockLeases
-      .filter((l) => myUnitIds.includes(l.unitId))
-      .map((l) => l.id);
+        // 3. Get leases for these units
+        const leasesRes = await leaseApi.getAll();
+        const allLeases = leasesRes.data || [];
+        const myLeases = allLeases.filter(l => myUnitIds.includes(l.unitId));
+        const myLeaseIds = myLeases.map(l => l.id);
 
-    const myPayments = mockPayments
-      .filter((payment) => myLeaseIds.includes(payment.leaseId))
-      .map((payment) => {
-        const lease = mockLeases.find((l) => l.id === payment.leaseId);
-        const unit = lease ? mockUnits.find((u) => u.id === lease.unitId) : null;
-        const property = unit ? mockProperties.find((p) => p.id === unit.propertyId) : null;
-        const tenant = mockUsers.find((u) => u.id === payment.tenantId);
+        // 4. Get payments for these leases
+        const paymentsRes = await paymentApi.getAll();
+        const allPayments = paymentsRes.data || [];
+        const myPayments = allPayments.filter(p => myLeaseIds.includes(p.leaseId));
 
-        return {
-          ...payment,
-          unit: unit ? { unitNumber: unit.unitNumber } : { unitNumber: 'N/A' },
-          property: property ? { name: property.name } : { name: 'N/A' },
-          tenant: tenant ? {
-            firstName: tenant.firstName,
-            lastName: tenant.lastName,
-          } : null,
-        };
-      })
-      .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+        // 5. Get all users for tenant details
+        const usersRes = await userApi.getAll();
+        const allUsers = usersRes.data || [];
 
-    setPayments(myPayments);
+        // 6. Enrich payments
+        const enriched: PaymentWithDetails[] = myPayments.map(payment => {
+          const lease = myLeases.find(l => l.id === payment.leaseId);
+          const unit = lease ? myUnits.find(u => u.id === lease.unitId) : null;
+          const property = unit ? propsRes.data?.find(p => p.id === unit.propertyId) : null;
+          const tenant = allUsers.find(u => u.id === payment.tenantId);
+
+          return {
+            ...payment,
+            unit: unit ? { unitNumber: unit.unitNumber } : { unitNumber: 'N/A' },
+            property: property ? { name: property.name } : { name: 'N/A' },
+            tenant: tenant ? {
+              firstName: tenant.firstName,
+              lastName: tenant.lastName,
+            } : null,
+          };
+        }).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+
+        setPayments(enriched);
+      } catch (error) {
+        console.error('Failed to load payments', error);
+        setPayments([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPayments();
   }, [user]);
 
   const stats = {
@@ -92,7 +120,7 @@ export default function LandlordPayments() {
           <div>
             <h4 className="font-semibold">Read-Only Access</h4>
             <p className="text-sm text-muted-foreground">
-              Payment processing and recording is handled by the system administrator. 
+              Payment processing and recording is handled by the system administrator.
               You can view payment status to track which tenants are up to date.
             </p>
           </div>
@@ -161,7 +189,11 @@ export default function LandlordPayments() {
           <CardTitle>Payment Records</CardTitle>
         </CardHeader>
         <CardContent>
-          {payments.length === 0 ? (
+          {isLoading ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">Loading payments...</p>
+            </div>
+          ) : payments.length === 0 ? (
             <div className="py-12 text-center">
               <CreditCard className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
               <h3 className="mb-2 text-lg font-semibold">No payment records</h3>

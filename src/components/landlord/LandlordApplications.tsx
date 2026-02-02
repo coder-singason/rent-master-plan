@@ -32,7 +32,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { mockApplications, mockUnits, mockProperties, mockUsers, formatCurrency, formatDate } from '@/lib/mock-data';
+import { applicationApi, propertyApi, unitApi, userApi } from '@/lib/api';
+import { formatCurrency, formatDate } from '@/lib/mock-data';
 import type { Application, ApplicationStatus, RecommendationStatus } from '@/types';
 
 interface ApplicationWithDetails extends Application {
@@ -64,48 +65,76 @@ export default function LandlordApplications() {
   const [recommendationType, setRecommendationType] = useState<'recommended' | 'not_recommended'>('recommended');
   const [recommendationNotes, setRecommendationNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    // Get applications for properties owned by this landlord
-    const landlordId = user?.id || 'landlord-001';
-    const myPropertyIds = mockProperties
-      .filter((p) => p.landlordId === landlordId)
-      .map((p) => p.id);
+    const loadApplications = async () => {
+      if (!user) return;
+      setIsLoading(true);
+      try {
+        // 1. Get landlord's properties
+        const propsRes = await propertyApi.getByLandlord(user.id);
+        if (!propsRes.success || !propsRes.data) {
+          setApplications([]);
+          return;
+        }
+        const myPropertyIds = propsRes.data.map(p => p.id);
 
-    const myUnitIds = mockUnits
-      .filter((u) => myPropertyIds.includes(u.propertyId))
-      .map((u) => u.id);
+        // 2. Get all units for these properties
+        const unitsRes = await unitApi.getAll();
+        const allUnits = unitsRes.data || [];
+        const myUnits = allUnits.filter(u => myPropertyIds.includes(u.propertyId));
+        const myUnitIds = myUnits.map(u => u.id);
 
-    const myApplications = mockApplications
-      .filter((app) => myUnitIds.includes(app.unitId))
-      .map((app) => {
-        const unit = mockUnits.find((u) => u.id === app.unitId);
-        const property = unit ? mockProperties.find((p) => p.id === unit.propertyId) : null;
-        const tenant = mockUsers.find((u) => u.id === app.tenantId);
+        // 3. Get all applications
+        const appsRes = await applicationApi.getAll();
+        const allApps = appsRes.data || [];
 
-        return {
-          ...app,
-          unit: unit ? {
-            unitNumber: unit.unitNumber,
-            type: unit.type,
-            rentAmount: unit.rentAmount,
-          } : { unitNumber: 'N/A', type: 'N/A', rentAmount: 0 },
-          property: property ? {
-            name: property.name,
-            city: property.city,
-          } : { name: 'N/A', city: 'N/A' },
-          tenant: tenant ? {
-            firstName: tenant.firstName,
-            lastName: tenant.lastName,
-            email: tenant.email,
-            phone: tenant.phone,
-          } : null,
-        };
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // 4. Filter to applications for my units
+        const myApps = allApps.filter(app => myUnitIds.includes(app.unitId));
 
-    setApplications(myApplications);
-  }, [user]);
+        // 5. Get all users for tenant details
+        const usersRes = await userApi.getAll();
+        const allUsers = usersRes.data || [];
+
+        // 6. Enrich applications
+        const enriched: ApplicationWithDetails[] = myApps.map(app => {
+          const unit = myUnits.find(u => u.id === app.unitId);
+          const property = unit ? propsRes.data?.find(p => p.id === unit.propertyId) : null;
+          const tenant = allUsers.find(u => u.id === app.tenantId);
+
+          return {
+            ...app,
+            unit: unit ? {
+              unitNumber: unit.unitNumber,
+              type: unit.type,
+              rentAmount: unit.rentAmount,
+            } : { unitNumber: 'N/A', type: 'N/A', rentAmount: 0 },
+            property: property ? {
+              name: property.name,
+              city: property.city,
+            } : { name: 'N/A', city: 'N/A' },
+            tenant: tenant ? {
+              firstName: tenant.firstName,
+              lastName: tenant.lastName,
+              email: tenant.email,
+              phone: tenant.phone,
+            } : null,
+          };
+        }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        setApplications(enriched);
+      } catch (error) {
+        console.error('Failed to load applications', error);
+        setApplications([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadApplications();
+  }, [user, refreshTrigger]);
 
   const viewDetails = (app: ApplicationWithDetails) => {
     setSelectedApp(app);
@@ -120,16 +149,30 @@ export default function LandlordApplications() {
   };
 
   const handleSubmitRecommendation = async () => {
+    if (!selectedApp) return;
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    toast({
-      title: 'Recommendation Submitted',
-      description: `Your ${recommendationType === 'recommended' ? 'approval' : 'rejection'} recommendation has been sent to the admin.`,
-    });
+    try {
+      const res = await applicationApi.update(selectedApp.id, {
+        landlordRecommendation: recommendationType,
+        landlordNotes: recommendationNotes || undefined,
+      });
 
-    setShowRecommendDialog(false);
-    setIsSubmitting(false);
+      if (res.success) {
+        toast({
+          title: 'Recommendation Submitted',
+          description: `Your ${recommendationType === 'recommended' ? 'approval' : 'rejection'} recommendation has been sent to the admin.`,
+        });
+        setShowRecommendDialog(false);
+        setRefreshTrigger(prev => prev + 1); // Refresh data
+      } else {
+        toast({ title: 'Error', description: 'Failed to submit recommendation', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to submit recommendation', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const stats = {
@@ -154,7 +197,7 @@ export default function LandlordApplications() {
           <div>
             <h4 className="font-semibold">Recommendation Only</h4>
             <p className="text-sm text-muted-foreground">
-              As a landlord, you can recommend approving or rejecting applications. 
+              As a landlord, you can recommend approving or rejecting applications.
               Final decisions are made by the system administrator.
             </p>
           </div>
@@ -210,7 +253,11 @@ export default function LandlordApplications() {
           <CardTitle>Applications</CardTitle>
         </CardHeader>
         <CardContent>
-          {applications.length === 0 ? (
+          {isLoading ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">Loading applications...</p>
+            </div>
+          ) : applications.length === 0 ? (
             <div className="py-12 text-center">
               <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
               <h3 className="mb-2 text-lg font-semibold">No applications</h3>
