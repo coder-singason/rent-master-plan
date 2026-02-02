@@ -52,7 +52,7 @@ export default function ListingDetail() {
   // Combine unit and property images
   const allImages = [...unit.imageUrls, ...property.imageUrls].filter(Boolean);
   if (allImages.length === 0) {
-    allImages.push('https://placehold.co/800x600/16a34a/ffffff?text=Listing+Details');
+    allImages.push('https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80');
   }
 
   const nextImage = () => {
@@ -149,8 +149,8 @@ export default function ListingDetail() {
                         key={index}
                         onClick={() => setCurrentImageIndex(index)}
                         className={`h-2 w-2 rounded-full transition-all ${index === currentImageIndex
-                            ? 'w-6 bg-primary'
-                            : 'bg-white/60 hover:bg-white/80'
+                          ? 'w-6 bg-primary'
+                          : 'bg-white/60 hover:bg-white/80'
                           }`}
                       />
                     ))}
