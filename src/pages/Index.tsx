@@ -12,7 +12,8 @@ import {
   ArrowRight,
   CheckCircle2,
   MapPin,
-  Home
+  Home,
+  Phone
 } from 'lucide-react';
 import { mockProperties, mockUnits, formatCurrency } from '@/lib/mock-data';
 import { Header } from '@/components/layout/Header';
@@ -266,7 +267,8 @@ export default function Index() {
               </Button>
             </Link>
             <Link to="/contact">
-              <Button size="lg" variant="outline" className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10">
+              <Button size="lg" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                <Phone className="h-4 w-4" />
                 Contact Sales
               </Button>
             </Link>
