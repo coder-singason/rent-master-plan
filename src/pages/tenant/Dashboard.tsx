@@ -7,10 +7,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { dashboardApi } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/mock-data';
 import type { TenantDashboardStats } from '@/types';
-import { 
-  Home, 
-  FileText, 
-  CreditCard, 
+import {
+  Home,
+  FileText,
+  CreditCard,
   Wrench,
   MessageSquare,
   ArrowRight,
@@ -23,6 +23,7 @@ import TenantLease from '@/components/tenant/TenantLease';
 import TenantPayments from '@/components/tenant/TenantPayments';
 import TenantMaintenance from '@/components/tenant/TenantMaintenance';
 import TenantMessages from '@/components/tenant/TenantMessages';
+import TenantSettings from '@/components/tenant/TenantSettings';
 
 function DashboardHome() {
   const { user } = useAuth();
@@ -241,6 +242,7 @@ export default function TenantDashboard() {
         <Route path="payments/*" element={<TenantPayments />} />
         <Route path="maintenance/*" element={<TenantMaintenance />} />
         <Route path="messages/*" element={<TenantMessages />} />
+        <Route path="settings" element={<TenantSettings />} />
       </Routes>
     </DashboardLayout>
   );

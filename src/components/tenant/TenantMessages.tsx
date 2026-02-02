@@ -44,6 +44,7 @@ export default function TenantMessages() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<MessageWithSender[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showComposeDialog, setShowComposeDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<MessageWithSender | null>(null);
@@ -101,7 +102,7 @@ export default function TenantMessages() {
     };
 
     loadMessages();
-  }, [user]);
+  }, [user, refreshTrigger]);
 
   const handleSendMessage = async () => {
     try {
@@ -109,16 +110,41 @@ export default function TenantMessages() {
       setFormErrors({});
       setIsSubmitting(true);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Send via API
+      if (!user) {
+        toast({ title: 'Error', description: 'You must be logged in to send messages', variant: 'destructive' });
+        return;
+      }
 
-      toast({
-        title: 'Message Sent',
-        description: 'Your message has been sent successfully.',
+      const res = await messageApi.send({
+        senderId: user.id || 'tenant-001', // Fallback for prototype if user missing (though check above handles it)
+        receiverId: newMessage.receiverId,
+        subject: newMessage.subject,
+        content: newMessage.content,
       });
 
-      setShowComposeDialog(false);
-      setNewMessage({ receiverId: '', subject: '', content: '' });
+      if (res.success) {
+        toast({
+          title: 'Message Sent',
+          description: 'Your message has been sent successfully.',
+        });
+
+        setShowComposeDialog(false);
+        setNewMessage({ receiverId: '', subject: '', content: '' });
+        setRefreshTrigger(prev => prev + 1);
+
+        // Reload messages to show the new one
+        // We can trigger the useEffect by extracting loadMessages or just hacking a refresh state
+        // For cleaner code, let's just re-run the fetching logic. 
+        // We'll signal a refresh by updating a timestamp or similar, but since we can't easily change the useEffect dependency array 
+        // without extracting the function... checking if I can extract it safely.
+        // Actually, let's just reload the page or better:
+        // We should really extract loadMessages outside useEffect or use a refresh trigger.
+        // Given I am doing a quick fix, I will reload the window? No, that's bad UX.
+        // I will add a 'refresh' state to the dependency array of useEffect.
+      } else {
+        toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         const errors: Record<string, string> = {};

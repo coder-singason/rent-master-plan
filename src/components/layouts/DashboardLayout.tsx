@@ -80,7 +80,7 @@ export function DashboardLayout({ children, navItems, title }: DashboardLayoutPr
         <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-1">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.href || 
+              const isActive = location.pathname === item.href ||
                 (item.href !== `/${user?.role}` && location.pathname.startsWith(item.href));
               return (
                 <li key={item.href}>
@@ -221,4 +221,5 @@ export const tenantNavItems: NavItem[] = [
   { label: 'Payments', href: '/tenant/payments', icon: CreditCard },
   { label: 'Maintenance', href: '/tenant/maintenance', icon: Wrench },
   { label: 'Messages', href: '/tenant/messages', icon: MessageSquare },
+  { label: 'Settings', href: '/tenant/settings', icon: Settings },
 ];
