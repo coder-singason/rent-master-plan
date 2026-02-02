@@ -28,8 +28,8 @@ import {
 } from 'recharts';
 import { TrendingUp, TrendingDown, Building2, CreditCard, Users, CalendarIcon, GitCompare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { dashboardApi, propertiesApi, unitsApi, paymentsApi, leasesApi, applicationsApi, maintenanceApi } from '@/lib/api';
-import type { Property, Unit, Payment, Lease, Application, MaintenanceRequest } from '@/types';
+import { dashboardApi, propertiesApi, unitsApi, paymentsApi, leasesApi, applicationsApi, maintenanceApi, usersApi } from '@/lib/api';
+import type { Property, Unit, Payment, Lease, Application, MaintenanceRequest, User } from '@/types';
 
 const formatCurrency = (value: number) => `KES ${(value / 1000).toFixed(0)}K`;
 const formatCurrencyFull = (value: number) => `KES ${(value / 1000000).toFixed(2)}M`;
@@ -331,6 +331,7 @@ export default function DashboardAnalytics() {
   const [leases, setLeases] = useState<Lease[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Primary date range
@@ -353,13 +354,14 @@ export default function DashboardAnalytics() {
         
         if (user.role === 'admin') {
           // Admin sees all data
-          const [propsRes, unitsRes, paymentsRes, leasesRes, appsRes, maintRes] = await Promise.all([
+          const [propsRes, unitsRes, paymentsRes, leasesRes, appsRes, maintRes, usersRes] = await Promise.all([
             propertiesApi.getAll(),
             unitsApi.getAll(),
             paymentsApi.getAll(),
             leasesApi.getAll(),
             applicationsApi.getAll(),
             maintenanceApi.getAll(),
+            usersApi.getAll(),
           ]);
           
           setProperties(propsRes.data || []);
@@ -368,6 +370,7 @@ export default function DashboardAnalytics() {
           setLeases(leasesRes.data || []);
           setApplications(appsRes.data || []);
           setMaintenance(maintRes.data || []);
+          setAllUsers(usersRes.data || []);
           
         } else if (user.role === 'landlord') {
           // Landlord sees only their data
@@ -636,8 +639,8 @@ export default function DashboardAnalytics() {
         />
         <ComparisonStatCard
           title="Active Tenants"
-          currentValue="247"
-          compareValue={isComparing ? "239" : undefined}
+          currentValue={allUsers.filter(u => u.role === 'tenant' && u.status === 'active').length.toString()}
+          compareValue={isComparing ? allUsers.filter(u => u.role === 'tenant' && u.status === 'active').length.toString() : undefined}
           change={isComparing ? 3.3 : -0.8}
           icon={Users}
           isComparing={isComparing}
